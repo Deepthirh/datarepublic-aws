@@ -44,7 +44,7 @@ public class EC2Test {
         InstanceType instanceType = InstanceType.fromValue(System.getProperty("aws.ec2.instance.type"));
         Integer count = Integer.getInteger("number.of.instances");
 
-        System.out.printf("Creating aws ec2 %d instance(s) from ami %s of type %s\n", count, ami, instanceType);
+        System.out.printf("Creating %d aws ec2 instance(s) from ami %s of type %s\n", count, ami, instanceType);
 
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
         runInstancesRequest.withImageId(ami)
