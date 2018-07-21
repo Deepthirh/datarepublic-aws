@@ -1,6 +1,6 @@
 ### Question 2:
 
-AWS Work Sheet:
+AWS  Assignment:
 
 ### Prerequisites :
 JDK 1.8 , Maven 3.0
