@@ -6,6 +6,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.util.CollectionUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,11 +24,19 @@ public class EC2Test {
 
     @Before
     public void setUp() {
-        BasicAWSCredentials awsCreds = new BasicAWSCredentials(System.getProperty("access_key_id"), System.getProperty("secret_key_id"));
+        String accessKeyId = System.getProperty("access_key_id");
+        String secretKeyId = System.getProperty("secret_key_id");
+        String region = System.getProperty("region");
+
+        Assert.assertNotNull("Access key id is null!", accessKeyId);
+        Assert.assertNotNull("Secret key id is null!", secretKeyId);
+        Assert.assertNotNull("Region is null!", region);
+
+        BasicAWSCredentials awsCreds = new BasicAWSCredentials(accessKeyId, secretKeyId);
 
         ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
-                .withRegion(System.getProperty("region"))
+                .withRegion(region)
                 .build();
     }
 
@@ -61,17 +70,23 @@ public class EC2Test {
         List<String> instanceIds = instances.getReservation().getInstances().stream().map(Instance::getInstanceId).collect(Collectors.toList());
         DescribeInstanceStatusRequest describeInstanceStatusRequest = new DescribeInstanceStatusRequest();
         DescribeInstanceStatusResult instanceStatus;
+        int tries = 10;
         boolean hasStatus;
         do {
             System.out.println("Waiting for status update...");
             TimeUnit.SECONDS.sleep(2);
             instanceStatus = ec2.describeInstanceStatus(describeInstanceStatusRequest.withInstanceIds(instanceIds));
             hasStatus = !instanceStatus.getInstanceStatuses().isEmpty();
-        } while (!hasStatus);
+            tries--;
+        } while (!hasStatus && tries > 0);
 
-        System.out.println("\n");
-        instanceStatus.getInstanceStatuses().forEach(s -> System.out.printf("Instance with Id %s is %s\n", s.getInstanceId(), s.getInstanceState().getName()));
-        System.out.println("\n");
+        Assert.assertTrue("Could not get status in 20 sec", hasStatus);
+
+        List<InstanceStatus> list = instanceStatus.getInstanceStatuses().stream()
+                .filter(s -> s.getInstanceState().getCode() != 16) // Running status
+                .collect(Collectors.toList());
+
+        Assert.assertTrue("Not all instances are runnig!\n" + list.stream().map(InstanceStatus::toString).collect(Collectors.joining("\n")), list.isEmpty());
     }
 
     private void shouldTerminate() {
@@ -80,7 +95,11 @@ public class EC2Test {
         System.out.printf("Terminating aws ec2 instance(s) %s\n", CollectionUtils.join(instanceIds, ","));
         TerminateInstancesResult terminateInstancesResult = ec2.terminateInstances(new TerminateInstancesRequest(instanceIds));
 
-        terminateInstancesResult.getTerminatingInstances().forEach(s -> System.out.printf("Instance with Id %s is %s\n", s.getInstanceId(), s.getCurrentState().getName()));
+        List<InstanceStateChange> list = terminateInstancesResult.getTerminatingInstances().stream()
+                .filter(s -> s.getCurrentState().getCode() != 32)
+                .collect(Collectors.toList());
+
+        Assert.assertTrue("Not all instances are shutting down!\n" + list.stream().map(InstanceStateChange::toString).collect(Collectors.joining("\n")), list.isEmpty());
     }
 
 }
