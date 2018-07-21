@@ -51,7 +51,7 @@ public class EC2Test {
 
         String ami = System.getProperty("aws.ec2.ami");
         InstanceType instanceType = InstanceType.fromValue(System.getProperty("aws.ec2.instance.type"));
-        Integer count = Integer.getInteger("number.of.instances");
+        int count = Integer.getInteger("number.of.instances");
 
         System.out.printf("Creating %d aws ec2 instance(s) from ami %s of type %s\n", count, ami, instanceType);
 
@@ -64,10 +64,12 @@ public class EC2Test {
         instances = ec2.runInstances(runInstancesRequest);
 
         System.out.println(instances);
+        Assert.assertEquals("Could not create " + count + " instance(s)", count, instances.getReservation().getInstances().size());
     }
 
     private void shouldCheckIfItIsRunning() throws Exception {
         List<String> instanceIds = instances.getReservation().getInstances().stream().map(Instance::getInstanceId).collect(Collectors.toList());
+
         DescribeInstanceStatusRequest describeInstanceStatusRequest = new DescribeInstanceStatusRequest();
         DescribeInstanceStatusResult instanceStatus;
         int tries = 10;
@@ -86,7 +88,7 @@ public class EC2Test {
                 .filter(s -> s.getInstanceState().getCode() != 16) // Running status
                 .collect(Collectors.toList());
 
-        Assert.assertTrue("Not all instances are runnig!\n" + list.stream().map(InstanceStatus::toString).collect(Collectors.joining("\n")), list.isEmpty());
+        Assert.assertTrue("Not all instances are running!\n" + list.stream().map(InstanceStatus::toString).collect(Collectors.joining("\n")), list.isEmpty());
     }
 
     private void shouldTerminate() {
